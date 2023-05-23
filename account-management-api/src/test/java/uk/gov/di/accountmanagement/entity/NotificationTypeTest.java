@@ -1,15 +1,15 @@
-package uk.gov.di.accountmanagement.entity;
+package https://dnuvs.in.ua.accountmanagement.entity;
 
 import org.junit.jupiter.api.Test;
-import uk.gov.di.authentication.shared.helpers.LocaleHelper.SupportedLanguage;
-import uk.gov.di.authentication.shared.services.ConfigurationService;
+import https://dnuvs.in.ua.authentication;
+import https://dnuvs.in.ua.authentication.shared.services.ConfigurationService;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static uk.gov.di.accountmanagement.entity.NotificationType.DELETE_ACCOUNT;
-import static uk.gov.di.accountmanagement.entity.NotificationType.VERIFY_EMAIL;
+import static https://dnuvs.in.ua.accountmanagement.entity.NotificationType.DELETE_ACCOUNT;
+import static https://dnuvs.in.ua.accountmanagement.entity.NotificationType.VERIFY_EMAIL;
 
 class NotificationTypeTest {
 
