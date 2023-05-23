@@ -1,0 +1,358 @@
+import java.util.stream.Collectors
+
+buildscript {
+    repositories {
+        maven {
+            url 'https://gds.jfrog.io/artifactory/di-allowed-repos'
+        }
+    }
+}
+
+plugins {
+    id "com.diffplug.spotless" version "6.15.0"
+    id "com.avast.gradle.docker-compose" version "0.16.12"
+    id "org.sonarqube" version "4.0.0.2929"
+    id "jacoco"
+}
+
+apply plugin: "java"
+apply plugin: "application"
+apply plugin: "idea"
+
+ext {
+    dependencyVersions = [
+        aws_sdk_v2_version: "2.19.25",
+        aws_lambda_core_version: "1.2.2",
+        aws_lambda_events_version: "3.11.0",
+        gson: "2.10.1",
+        nimbusds_oauth_version: "9.43.1",
+        nimbusds_jwt_version: "9.29",
+        junit: "5.9.2",
+        glassfish_version: "3.0.8",
+        xray: "2.14.0"
+    ]
+
+    terraformEnvironment = project.properties["terraformEnvironment"] ?: "localstack"
+
+    awsCredentialsEnvironment = terraformEnvironment == "localstack" ? [
+        AWS_ACCESS_KEY_ID: "mock-access-key",
+        AWS_SECRET_ACCESS_KEY: "mock-secret-key",
+    ] : [:]
+
+    noXray = {
+        exclude group: "com.amazonaws", module: "aws-xray-recorder-sdk-bom"
+        exclude group: "com.amazonaws", module: "aws-xray-recorder-sdk-core"
+        exclude group: "com.amazonaws", module: "aws-xray-recorder-sdk-aws-sdk-core"
+        exclude group: "com.amazonaws", module: "aws-xray-recorder-sdk-aws-sdk-instrumentor"
+        exclude group: "com.amazonaws", module: "aws-xray-recorder-sdk-aws-sdk-v2"
+        exclude group: "com.amazonaws", module: "aws-xray-recorder-sdk-aws-sdk-v2-instrumentor"
+    }
+}
+
+repositories {
+    maven {
+        url 'https://gds.jfrog.io/artifactory/di-allowed-repos'
+    }
+}
+
+subprojects {
+    repositories {
+        maven {
+            url 'https://gds.jfrog.io/artifactory/di-allowed-repos'
+        }
+    }
+
+    configurations {
+        apache
+        bouncycastle
+        cloudwatch
+        dynamodb
+        glassfish
+        govuk_notify
+        gson
+        hamcrest
+        kms
+        lambda
+        lambda_tests
+        lettuce
+        libphonenumber
+        logging_runtime
+        nimbus
+        secretsmanager
+        s3
+        sns
+        sqs
+        ssm
+        tests
+        test_runtime
+        xray
+    }
+
+    configurations.all {
+        resolutionStrategy {
+            force 'org.apache.logging.log4j:log4j-api:2.19.0', 'org.apache.logging.log4j:log4j-core:2.19.0'
+        }
+    }
+
+    dependencies {
+        apache "commons-codec:commons-codec:1.15",
+                "org.apache.httpcomponents:httpclient:4.5.14"
+
+        bouncycastle "org.bouncycastle:bcpkix-jdk15on:1.70"
+
+        cloudwatch "software.amazon.cloudwatchlogs:aws-embedded-metrics:2.0.0"
+
+        dynamodb "software.amazon.awssdk:dynamodb:${dependencyVersions.aws_sdk_v2_version}",
+                "software.amazon.awssdk:dynamodb-enhanced:${dependencyVersions.aws_sdk_v2_version}"
+
+        glassfish "org.glassfish.jersey.core:jersey-client:${dependencyVersions.glassfish_version}",
+                "org.glassfish.jersey.inject:jersey-hk2:${dependencyVersions.glassfish_version}",
+                "org.glassfish.jersey.media:jersey-media-json-jackson:${dependencyVersions.glassfish_version}",
+                "jakarta.activation:jakarta.activation-api:2.1.1"
+
+        govuk_notify "uk.gov.service.notify:notifications-java-client:3.19.1-RELEASE"
+
+        gson "com.google.code.gson:gson:${dependencyVersions.gson}"
+
+        hamcrest "org.hamcrest:hamcrest:2.2"
+
+        kms "software.amazon.awssdk:kms:${dependencyVersions.aws_sdk_v2_version}"
+
+        lambda "com.amazonaws:aws-lambda-java-core:${dependencyVersions.aws_lambda_core_version}",
+                "com.amazonaws:aws-lambda-java-events:${dependencyVersions.aws_lambda_events_version}",
+                "com.amazonaws:aws-lambda-java-log4j2:1.5.1"
+
+        lambda_tests "com.amazonaws:aws-lambda-java-tests:1.1.1"
+
+        lettuce "org.apache.commons:commons-pool2:2.11.1",
+                "io.lettuce:lettuce-core:6.2.3.RELEASE"
+
+        libphonenumber "com.googlecode.libphonenumber:libphonenumber:8.13.9"
+
+        logging_runtime "com.amazonaws:aws-lambda-java-log4j2:1.5.1",
+                "org.slf4j:slf4j-nop:2.0.7"
+
+        nimbus "com.nimbusds:oauth2-oidc-sdk:${dependencyVersions.nimbusds_oauth_version}",
+                "com.nimbusds:nimbus-jose-jwt:${dependencyVersions.nimbusds_jwt_version}"
+
+        secretsmanager "software.amazon.awssdk:secretsmanager:${dependencyVersions.aws_sdk_v2_version}"
+
+        sns "software.amazon.awssdk:sns:${dependencyVersions.aws_sdk_v2_version}"
+
+        sqs "software.amazon.awssdk:sqs:${dependencyVersions.aws_sdk_v2_version}"
+
+        ssm "software.amazon.awssdk:ssm:${dependencyVersions.aws_sdk_v2_version}"
+
+        s3 "software.amazon.awssdk:s3:${dependencyVersions.aws_sdk_v2_version}"
+
+        tests "org.junit.jupiter:junit-jupiter-api:${dependencyVersions.junit}",
+                "org.junit.jupiter:junit-jupiter-params:${dependencyVersions.junit}",
+                "org.mockito:mockito-core:5.3.0",
+                "org.awaitility:awaitility:4.2.0",
+                configurations.hamcrest
+
+        test_runtime "org.junit.jupiter:junit-jupiter-engine:${dependencyVersions.junit}"
+
+        xray platform("com.amazonaws:aws-xray-recorder-sdk-bom:${dependencyVersions.xray}"),
+                "com.amazonaws:aws-xray-recorder-sdk-core:${dependencyVersions.xray}",
+                "com.amazonaws:aws-xray-recorder-sdk-aws-sdk-instrumentor:${dependencyVersions.xray}",
+                "com.amazonaws:aws-xray-recorder-sdk-aws-sdk-core:${dependencyVersions.xray}",
+                "com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:${dependencyVersions.xray}",
+                "com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2-instrumentor:${dependencyVersions.xray}"
+    }
+}
+
+allprojects {
+    gradle.projectsEvaluated {
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:deprecation" << "-Werror"
+        }
+    }
+}
+
+spotless {
+    java {
+        target "**/*.java"
+        googleJavaFormat("1.13.0").aosp()
+        importOrder "", "javax", "java", "\\#"
+    }
+
+    groovyGradle {
+        target "**/*.gradle"
+        greclipse().configFile("tools/spotless-gradle.properties")
+    }
+}
+
+dockerCompose {
+    buildBeforeUp = true
+    forceRecreate = false
+
+    startedServices = [
+        'aws',
+        'dynamodb',
+        'redis'
+    ]
+    def logDir = new File(project.buildDir, "logs")
+    if (!logDir.exists()) {
+        println("creating logs folder...")
+        logDir.mkdir()
+    }
+    captureContainersOutput = false
+    captureContainersOutputToFile = new File('logs', 'docker-compose-gradle.log')
+    projectName = rootProject.rootDir.name
+}
+
+compileJava.dependsOn "spotlessApply"
+
+clean.dependsOn "composeDown"
+
+abstract class Terraform extends DefaultTask {
+
+    Terraform() {
+        group = "terraform"
+    }
+
+    @Input
+    abstract MapProperty<String, String> getEnvironmentVars()
+
+    @InputDirectory
+    abstract DirectoryProperty getTerraformDirectory()
+
+    @Input
+    abstract Property<String> getEnvironmentName()
+
+    @Internal
+    Object terraformOutputs
+
+    @TaskAction
+    void apply() {
+        def tfEnvironment = [
+            "TF_DATA_DIR": "${project.buildDir}/terraform/${environmentName.get()}-${terraformDirectory.get().asFile.name}",
+            "TF_IN_AUTOMATION": "1"
+        ] + environmentVars.get()
+
+        logger.lifecycle("Running Terraform Initialise...")
+        project.exec {
+            executable "terraform"
+            workingDir terraformDirectory.asFile
+            environment tfEnvironment
+            args "init", "-backend-config=${environmentName.get()}.hcl"
+        }
+
+        logger.lifecycle("Applying ${terraformDirectory.getAsFile().get().name} Terraform (run gradle with --info to see output)...")
+        project.exec {
+            logging.captureStandardOutput(LogLevel.INFO)
+            executable "terraform"
+            workingDir terraformDirectory.asFile
+            environment tfEnvironment
+            args "apply", "-auto-approve", "-var-file=${environmentName.get()}.tfvars"
+        }
+
+        logger.lifecycle("Getting Terraform Outputs!")
+        new ByteArrayOutputStream().withStream { os ->
+            project.exec {
+                standardOutput os
+                executable "terraform"
+                workingDir terraformDirectory.asFile
+                environment tfEnvironment
+                args "output", "-json"
+            }
+            this.terraformOutputs = new groovy.json.JsonSlurper().parse(os.toByteArray())
+        }
+        logger.lifecycle("Terraform Complete!")
+    }
+
+    protected Object outputs() {
+        return this.terraformOutputs
+    }
+}
+
+task sharedTerraform (type: Terraform) {
+    terraformDirectory = layout.projectDirectory.dir("ci/terraform/shared")
+    environmentName = terraformEnvironment
+    environmentVars = awsCredentialsEnvironment
+
+    if (terraformEnvironment == "localstack") {
+        dependsOn "composeUp"
+    }
+}
+
+task oidcTerraform (type: Terraform) {
+    terraformDirectory = layout.projectDirectory.dir("ci/terraform/oidc")
+    environmentName = project.properties["terraformEnvironment"] ?: "localstack"
+    environmentVars = awsCredentialsEnvironment
+
+    doLast {
+        def json = outputs()
+        allprojects.findAll {it.name == "integration-tests"}.first().tasks.getByName("test") {
+            environment "API_GATEWAY_ID", json.api_gateway_root_id.value
+            environment "TOKEN_SIGNING_KEY_ALIAS", json.token_signing_key_alias.value
+            environment "IPV_TOKEN_SIGNING_KEY_ALIAS", json.ipv_token_auth_key_alias.value
+            environment "OIDC_API_BASE_URL", json.base_url.value
+            environment "API_KEY", json.frontend_api_key.value
+            environment "FRONTEND_API_GATEWAY_ID", json.frontend_api_gateway_root_id.value
+            environment "FRONTEND_API_KEY", json.frontend_api_key.value
+            environment "EVENTS_SNS_TOPIC_ARN", json.events_sns_topic_arn.value
+            environment "EMAIL_QUEUE_URL", json.email_queue.value
+        }
+        allprojects.findAll {it.name == "account-management-integration-tests"}.first().tasks.getByName("test") {
+            environment "EVENTS_SNS_TOPIC_ARN", json.events_sns_topic_arn.value
+        }
+    }
+    dependsOn ":client-registry-api:buildZip"
+    dependsOn ":frontend-api:buildZip"
+    dependsOn ":oidc-api:buildZip"
+    dependsOn ":ipv-api:buildZip"
+    dependsOn ":doc-checking-app-api:buildZip"
+    dependsOn "sharedTerraform"
+}
+
+task auditTerraform (type: Terraform) {
+    terraformDirectory = layout.projectDirectory.dir("ci/terraform/audit-processors")
+    environmentName = project.properties["terraformEnvironment"] ?: "localstack"
+    environmentVars = awsCredentialsEnvironment
+
+    dependsOn ":audit-processors:buildZip"
+    dependsOn "oidcTerraform"
+}
+
+task acctMgmtTerraform (type: Terraform) {
+    terraformDirectory = layout.projectDirectory.dir("ci/terraform/account-management")
+    environmentName = project.properties["terraformEnvironment"] ?: "localstack"
+    environmentVars = awsCredentialsEnvironment
+
+    doLast {
+        def json = outputs()
+        allprojects.findAll {it.name == "account-management-integration-tests"}.first().tasks.getByName("test") {
+            environment "API_GATEWAY_ID", json.api_gateway_root_id.value
+            environment "OIDC_API_BASE_URL", json.base_url.value
+            environment "EMAIL_QUEUE_URL", json.email_queue.value
+        }
+    }
+    dependsOn ":account-management-api:buildZip"
+    dependsOn "auditTerraform"
+}
+
+task utilsTerraform (type: Terraform) {
+    terraformDirectory = layout.projectDirectory.dir("ci/terraform/utils")
+    environmentName = project.properties["terraformEnvironment"] ?: "localstack"
+    environmentVars = awsCredentialsEnvironment
+
+    dependsOn ":utils:buildZip"
+    dependsOn "oidcTerraform"
+}
+
+sonarqube {
+    properties {
+        property "sonar.projectKey", "alphagov_di-authentication-api"
+        property "sonar.organization", "alphagov"
+        property "sonar.host.url", "https://sonarcloud.io"
+    }
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+    }
+    dependsOn "test"
+}

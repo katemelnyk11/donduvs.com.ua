@@ -1,0 +1,69 @@
+plugins {
+    id "java"
+    id "jacoco"
+}
+
+group "uk.gov.di"
+version "unspecified"
+
+dependencies {
+    testImplementation configurations.bouncycastle,
+            configurations.apache,
+            configurations.nimbus,
+            configurations.glassfish,
+            configurations.gson,
+            configurations.tests,
+            configurations.sqs,
+            configurations.dynamodb,
+            configurations.lambda,
+            configurations.lettuce,
+            configurations.libphonenumber
+
+    testImplementation project(":shared"), noXray
+    testImplementation project(":account-management-api"), noXray
+    testImplementation project(":shared-test"), noXray
+
+
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${dependencyVersions.junit}"
+}
+
+test {
+    useJUnitPlatform()
+    filter {
+        includeTestsMatching "*"
+    }
+    environment "AUDIT_SIGNING_KEY_ALIAS", "alias/local-audit-payload-signing-key-alias"
+    environment "AWS_ACCESS_KEY_ID", "mock-access-key"
+    environment "AWS_REGION", "eu-west-2"
+    environment "AWS_SECRET_ACCESS_KEY", "mock-secret-key "
+    environment "OIDC_API_BASE_URL", "http://localhost"
+    environment "DYNAMO_ENDPOINT", "http://localhost:8000"
+    environment "ENVIRONMENT", "local"
+    environment "HEADERS_CASE_INSENSITIVE", "true"
+    environment "LOCALSTACK_ENDPOINT", "http://localhost:45678"
+    environment "REDIS_KEY", "account-management"
+    environment "SQS_ENDPOINT", "http://localhost:45678"
+    environment "TRACING_ENABLED", "false"
+    environment "INTERNAl_SECTOR_URI", "https://test.account.gov.uk"
+
+    testLogging {
+        showStandardStreams = false
+    }
+
+    doLast {
+        tasks.getByName("jacocoTestReport").sourceDirectories.from(
+                project(":account-management-api").sourceSets.main.java,
+                project(":shared").sourceSets.main.java)
+
+        tasks.getByName("jacocoTestReport").classDirectories.from(
+                project(":account-management-api").sourceSets.main.output,
+                project(":shared").sourceSets.main.output)
+    }
+    dependsOn ":composeUp"
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+    }
+}
